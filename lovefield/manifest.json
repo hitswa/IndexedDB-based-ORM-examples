@@ -1,0 +1,21 @@
+{
+  "name": "TODO App - Offline Ready",
+  "short_name": "TODO App", 
+  "description": "A powerful offline-ready TODO application with IndexedDB storage",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities"],
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

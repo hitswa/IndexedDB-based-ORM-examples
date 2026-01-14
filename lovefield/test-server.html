@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TODO App - Server Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .server-unavailable-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        .server-unavailable-banner.show {
+            display: block;
+        }
+        
+        .server-unavailable-banner .close-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+        
+        .server-unavailable-banner .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .body-with-banner {
+            padding-top: 60px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .online { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .offline { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #5a67d8; }
+    </style>
+</head>
+<body>
+    <!-- Server Unavailable Banner -->
+    <div id="serverBanner" class="server-unavailable-banner">
+        <span id="bannerMessage">⚠️ Server Unavailable - Running in Offline Mode</span>
+        <button class="close-btn" onclick="hideBanner()" title="Dismiss">&times;</button>
+    </div>
+
+    <h1>📝 TODO App - Local Server Test</h1>
+    
+    <div id="status" class="status info">
+        Starting local server test...
+    </div>
+    
+    <div class="info">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Run this from a local server (not file:// protocol)</li>
+            <li>Open browser console to see Service Worker messages</li>
+            <li>Try disconnecting internet to test offline functionality</li>
+            <li>Refresh the page while offline - it should still work!</li>
+        </ol>
+    </div>
+
+    <div>
+        <button onclick="window.location.href='index.html'">Go to TODO App</button>
+        <button onclick="testOffline()">Test Offline Mode</button>
+        <button onclick="clearCache()">Clear Cache</button>
+    </div>
+
+    <div id="cacheInfo" class="info" style="margin-top: 20px;">
+        <h3>Cache Information:</h3>
+        <p>Loading cache information...</p>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (navigator.onLine) {
+                status.className = 'status online';
+                status.innerHTML = '🟢 Online - Service Worker caching enabled';
+            } else {
+                status.className = 'status offline';
+                status.innerHTML = '🔴 Offline - Running from cached files';
+            }
+        }
+
+        function testOffline() {
+            alert('To test offline mode:\n\n1. Disconnect your internet\n2. Refresh the page\n3. The app should still work!\n\nThis simulates the app working without server access.');
+        }
+
+        function showBanner() {
+            const banner = document.getElementById('serverBanner');
+            const body = document.body;
+            banner.classList.add('show');
+            body.classList.add('body-with-banner');
+        }
+
+        function hideBanner() {
+            const banner = document.getElementById('serverBanner');
+            const body = document.body;
+            banner.classList.remove('show');
+            body.classList.remove('body-with-banner');
+            localStorage.setItem('bannerDismissed', Date.now().toString());
+        }
+
+        async function checkServerAvailability() {
+            try {
+                // Try to fetch the current page to test server connectivity
+                const response = await fetch('./test-server.html', { 
+                    method: 'HEAD',
+                    cache: 'no-cache',
+                    signal: AbortSignal.timeout(3000) // 3 second timeout
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server responded with error');
+                }
+                
+                return true; // Server is available
+            } catch (error) {
+                console.warn('Server check failed:', error.message);
+                return false; // Server is unavailable
+            }
+        }
+
+        async function monitorServerStatus() {
+            const lastDismissed = localStorage.getItem('bannerDismissed');
+            const now = Date.now();
+            
+            // Only show banner if it hasn't been dismissed in the last 10 minutes
+            const shouldShowBanner = !lastDismissed || (now - parseInt(lastDismissed)) > 600000;
+            
+            if (!navigator.onLine) {
+                if (shouldShowBanner) {
+                    document.getElementById('bannerMessage').textContent = '🌐 No Internet Connection - Running in Offline Mode';
+                    showBanner();
+                }
+                return;
+            }
+
+            const serverAvailable = await checkServerAvailability();
+            
+            if (!serverAvailable && shouldShowBanner) {
+                document.getElementById('bannerMessage').textContent = '⚠️ Server Unavailable - Running in Offline Mode';
+                showBanner();
+            } else if (serverAvailable) {
+                hideBanner();
+                // Clear the dismissed flag if server is back online
+                localStorage.removeItem('bannerDismissed');
+            }
+        }
+
+        async function clearCache() {
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+                alert('Cache cleared! Refresh to re-cache files.');
+                location.reload();
+            }
+        }
+
+        async function loadCacheInfo() {
+            const cacheInfo = document.getElementById('cacheInfo');
+            
+            if ('caches' in window && 'serviceWorker' in navigator) {
+                try {
+                    const cacheNames = await caches.keys();
+                    let totalFiles = 0;
+                    let cacheDetails = '<h3>Cache Information:</h3>';
+                    
+                    for (const cacheName of cacheNames) {
+                        const cache = await caches.open(cacheName);
+                        const keys = await cache.keys();
+                        totalFiles += keys.length;
+                        cacheDetails += `<p><strong>${cacheName}:</strong> ${keys.length} files</p>`;
+                    }
+                    
+                    cacheDetails += `<p><strong>Total cached files:</strong> ${totalFiles}</p>`;
+                    cacheDetails += '<p>✅ App ready for offline use!</p>';
+                    cacheInfo.innerHTML = cacheDetails;
+                } catch (error) {
+                    cacheInfo.innerHTML = '<h3>Cache Information:</h3><p>Error loading cache info: ' + error.message + '</p>';
+                }
+            } else {
+                cacheInfo.innerHTML = '<h3>Cache Information:</h3><p>Service Worker or Cache API not supported</p>';
+            }
+        }
+
+        // Initialize
+        updateStatus();
+        loadCacheInfo();
+        monitorServerStatus();
+        
+        // Listen for online/offline events
+        window.addEventListener('online', function() {
+            updateStatus();
+            monitorServerStatus();
+        });
+        window.addEventListener('offline', function() {
+            updateStatus();
+            monitorServerStatus();
+        });
+
+        // Check server status periodically (every 30 seconds)
+        setInterval(monitorServerStatus, 30000);
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

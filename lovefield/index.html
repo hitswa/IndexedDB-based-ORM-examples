@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Offline-ready TODO application with IndexedDB storage">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TODO App">
+    
+    <title>TODO App - IndexedDB (Offline Ready)</title>
+    <script src="lovefield.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .todo-form {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .btn-warning:hover {
+            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
+        }
+
+        .todo-stats {
+            padding: 20px 30px;
+            background: #f1f3f5;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .todo-filters {
+            padding: 15px 30px;
+            background: #fff;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .todo-list {
+            padding: 30px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .todo-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .todo-item:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .todo-item.completed {
+            opacity: 0.7;
+            background: #f8f9fa;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        .todo-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .todo-info {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .todo-text {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .todo-deadline {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .todo-deadline.overdue {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .todo-meta {
+            font-size: 0.8em;
+            color: #999;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .todo-actions .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            min-width: auto;
+        }
+
+        .no-todos {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .no-todos i {
+            font-size: 3em;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #667eea;
+        }
+
+        .offline-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+        }
+
+        .offline-indicator.online {
+            background: #27ae60;
+        }
+
+        .server-unavailable-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        .server-unavailable-banner.show {
+            display: block;
+        }
+        
+        .server-unavailable-banner .close-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+        
+        .server-unavailable-banner .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .container.with-server-banner {
+            margin-top: 60px;
+        }
+
+        .install-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .install-prompt.show {
+            display: flex;
+        }
+
+        .install-text {
+            flex: 1;
+            margin-right: 15px;
+        }
+
+        .install-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .install-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .install-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .todo-filters {
+                justify-content: center;
+            }
+
+            .todo-content {
+                flex-direction: column;
+            }
+
+            .todo-actions {
+                justify-content: center;
+                margin-top: 10px;
+            }
+
+            .todo-stats {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Offline Indicator -->
+    <div id="offlineIndicator" class="offline-indicator">
+        <span id="connectionStatus">Offline</span>
+    </div>
+
+    <!-- Server Unavailable Banner -->
+    <div id="serverBanner" class="server-unavailable-banner">
+        <span id="bannerMessage">⚠️ Server Unavailable - Running in Offline Mode</span>
+        <button class="close-btn" onclick="hideServerBanner()" title="Dismiss">&times;</button>
+    </div>
+
+    <!-- Install Prompt -->
+    <div id="installPrompt" class="install-prompt">
+        <div class="install-text">
+            <strong>Install TODO App</strong><br>
+            Add this app to your home screen for quick access and offline use!
+        </div>
+        <div class="install-buttons">
+            <button class="install-btn" onclick="installApp()">Install</button>
+            <button class="install-btn" onclick="dismissInstall()">Later</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>📝 TODO Manager</h1>
+            <p>Organize your tasks with IndexedDB powered storage</p>
+        </div>
+
+        <div class="todo-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="todoText">Task Description</label>
+                    <input type="text" id="todoText" class="form-control" placeholder="Enter your task..." maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="todoDeadline">Deadline</label>
+                    <input type="datetime-local" id="todoDeadline" class="form-control">
+                </div>
+            </div>
+            <div class="form-row">
+                <button id="addBtn" class="btn" onclick="addTodo()">Add Task</button>
+                <button id="updateBtn" class="btn btn-warning" onclick="updateTodo()" style="display: none;">Update Task</button>
+                <button id="cancelBtn" class="btn btn-danger" onclick="cancelEdit()" style="display: none;">Cancel</button>
+            </div>
+        </div>
+
+        <div class="todo-stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalTasks">0</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="pendingTasks">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="completedTasks">0</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="overdueTasks">0</div>
+                <div class="stat-label">Overdue</div>
+            </div>
+        </div>
+
+        <div class="todo-filters">
+            <button class="filter-btn active" onclick="filterTodos('all')">All Tasks</button>
+            <button class="filter-btn" onclick="filterTodos('pending')">Pending</button>
+            <button class="filter-btn" onclick="filterTodos('completed')">Completed</button>
+            <button class="filter-btn" onclick="filterTodos('overdue')">Overdue</button>
+        </div>
+
+        <div class="todo-list" id="todoList">
+            <div class="loading">Loading tasks...</div>
+        </div>
+    </div>
+
+    <script>
+        // Database variables
+        let todoDb;
+        let itemTable;
+        let currentEditId = null;
+        let currentFilter = 'all';
+        let deferredPrompt; // For PWA install prompt
+
+        // Check online/offline status
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            const status = document.getElementById('connectionStatus');
+            
+            if (navigator.onLine) {
+                indicator.classList.add('online');
+                status.textContent = 'Online';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 2000);
+            } else {
+                indicator.classList.remove('online');
+                status.textContent = 'Offline';
+                indicator.style.display = 'block';
+            }
+        }
+
+        // Service Worker Registration
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker registered successfully:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', function() {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', function() {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New update available
+                                    if (confirm('New version available! Reload to update?')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.log('Service Worker registration failed:', error);
+                    });
+                
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', function(event) {
+                    if (event.data && event.data.type === 'CACHE_SIZE_RESPONSE') {
+                        console.log('Cached files count:', event.data.size);
+                    }
+                });
+            }
+        }
+
+        // PWA Install Prompt
+        function handleInstallPrompt() {
+            window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                
+                // Show custom install prompt after a delay
+                setTimeout(() => {
+                    if (!localStorage.getItem('installDismissed')) {
+                        document.getElementById('installPrompt').classList.add('show');
+                    }
+                }, 10000); // Show after 10 seconds
+            });
+
+            // Handle app installed event
+            window.addEventListener('appinstalled', function(e) {
+                console.log('PWA was installed');
+                document.getElementById('installPrompt').classList.remove('show');
+                deferredPrompt = null;
+            });
+        }
+
+        // Install the app
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function(choiceResult) {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    } else {
+                        console.log('User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+            document.getElementById('installPrompt').classList.remove('show');
+        }
+
+        // Dismiss install prompt
+        function dismissInstall() {
+            document.getElementById('installPrompt').classList.remove('show');
+            localStorage.setItem('installDismissed', 'true');
+        }
+
+        // Server Banner Management
+        function showServerBanner() {
+            const banner = document.getElementById('serverBanner');
+            const container = document.querySelector('.container');
+            banner.classList.add('show');
+            container.classList.add('with-server-banner');
+        }
+
+        function hideServerBanner() {
+            const banner = document.getElementById('serverBanner');
+            const container = document.querySelector('.container');
+            banner.classList.remove('show');
+            container.classList.remove('with-server-banner');
+            localStorage.setItem('serverBannerDismissed', Date.now().toString());
+        }
+
+        async function checkServerAvailability() {
+            try {
+                // Try to fetch a small resource to test server connectivity
+                const response = await fetch('./manifest.json', { 
+                    method: 'HEAD',
+                    cache: 'no-cache',
+                    signal: AbortSignal.timeout(3000) // 3 second timeout
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server responded with error');
+                }
+                
+                return true; // Server is available
+            } catch (error) {
+                console.warn('Server check failed:', error.message);
+                return false; // Server is unavailable
+            }
+        }
+
+        async function monitorServerStatus() {
+            const lastDismissed = localStorage.getItem('serverBannerDismissed');
+            const now = Date.now();
+            
+            // Only show banner if it hasn't been dismissed in the last 10 minutes
+            const shouldShowBanner = !lastDismissed || (now - parseInt(lastDismissed)) > 600000;
+            
+            if (!navigator.onLine) {
+                if (shouldShowBanner) {
+                    document.getElementById('bannerMessage').textContent = '🌐 No Internet Connection - App Running Offline';
+                    showServerBanner();
+                }
+                return;
+            }
+
+            const serverAvailable = await checkServerAvailability();
+            
+            if (!serverAvailable && shouldShowBanner) {
+                document.getElementById('bannerMessage').textContent = '⚠️ Server Unavailable - App Running from Cache';
+                showServerBanner();
+            } else if (serverAvailable) {
+                hideServerBanner();
+                // Clear the dismissed flag if server is back online
+                localStorage.removeItem('serverBannerDismissed');
+            }
+        }
+
+        // Initialize the database
+        function initDatabase() {
+            const schemaBuilder = lf.schema.create('todoApp', 1);
+            
+            schemaBuilder.createTable('TodoItem')
+                .addColumn('id', lf.Type.INTEGER)
+                .addColumn('description', lf.Type.STRING)
+                .addColumn('deadline', lf.Type.DATE_TIME)
+                .addColumn('done', lf.Type.BOOLEAN)
+                .addColumn('createdAt', lf.Type.DATE_TIME)
+                .addPrimaryKey(['id'])
+                .addIndex('idxDone', ['done'])
+                .addIndex('idxDeadline', ['deadline'], false, lf.Order.ASC);
+
+            return schemaBuilder.connect().then(function(db) {
+                todoDb = db;
+                itemTable = db.getSchema().table('TodoItem');
+                console.log('Database initialized successfully');
+                return db;
+            });
+        }
+
+        // Generate unique ID
+        function generateId() {
+            return Date.now() + Math.floor(Math.random() * 1000);
+        }
+
+        // Add new todo
+        async function addTodo() {
+            const description = document.getElementById('todoText').value.trim();
+            const deadline = document.getElementById('todoDeadline').value;
+
+            if (!description) {
+                alert('Please enter a task description');
+                return;
+            }
+
+            try {
+                const row = itemTable.createRow({
+                    id: generateId(),
+                    description: description,
+                    deadline: deadline ? new Date(deadline) : null,
+                    done: false,
+                    createdAt: new Date()
+                });
+
+                await todoDb.insertOrReplace().into(itemTable).values([row]).exec();
+                
+                // Clear form
+                document.getElementById('todoText').value = '';
+                document.getElementById('todoDeadline').value = '';
+                
+                loadTodos();
+                updateStats();
+                
+                console.log('Todo added successfully');
+            } catch (error) {
+                console.error('Error adding todo:', error);
+                alert('Error adding task. Please try again.');
+            }
+        }
+
+        // Load todos based on current filter
+        async function loadTodos() {
+            try {
+                let query = todoDb.select().from(itemTable);
+                
+                switch (currentFilter) {
+                    case 'pending':
+                        query = query.where(itemTable.done.eq(false));
+                        break;
+                    case 'completed':
+                        query = query.where(itemTable.done.eq(true));
+                        break;
+                    case 'overdue':
+                        query = query.where(
+                            lf.op.and(
+                                itemTable.done.eq(false),
+                                itemTable.deadline.lt(new Date())
+                            )
+                        );
+                        break;
+                }
+                
+                query = query.orderBy(itemTable.createdAt, lf.Order.DESC);
+                
+                const results = await query.exec();
+                displayTodos(results);
+            } catch (error) {
+                console.error('Error loading todos:', error);
+                document.getElementById('todoList').innerHTML = '<div class="no-todos">Error loading tasks</div>';
+            }
+        }
+
+        // Display todos in the UI
+        function displayTodos(todos) {
+            const todoList = document.getElementById('todoList');
+            
+            if (todos.length === 0) {
+                todoList.innerHTML = `
+                    <div class="no-todos">
+                        <span style="font-size: 3em;">📋</span>
+                        <p>No tasks found</p>
+                        <p style="font-size: 0.9em; margin-top: 10px;">Add a new task to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const todosHtml = todos.map(todo => {
+                const deadline = todo.deadline ? new Date(todo.deadline) : null;
+                const isOverdue = deadline && deadline < new Date() && !todo.done;
+                const deadlineText = deadline ? formatDate(deadline) : 'No deadline';
+                
+                return `
+                    <div class="todo-item ${todo.done ? 'completed' : ''}" id="todo-${todo.id}">
+                        <div class="todo-content">
+                            <div class="todo-info">
+                                <div class="todo-text">${escapeHtml(todo.description)}</div>
+                                <div class="todo-deadline ${isOverdue ? 'overdue' : ''}">
+                                    📅 ${deadlineText} ${isOverdue ? '(Overdue!)' : ''}
+                                </div>
+                                <div class="todo-meta">
+                                    Created: ${formatDate(new Date(todo.createdAt))}
+                                </div>
+                            </div>
+                            <div class="todo-actions">
+                                <button class="btn ${todo.done ? 'btn-warning' : 'btn-success'}" 
+                                        onclick="toggleTodo(${todo.id}, ${todo.done})">
+                                    ${todo.done ? 'Undo' : 'Complete'}
+                                </button>
+                                <button class="btn btn-warning" onclick="editTodo(${todo.id})">
+                                    Edit
+                                </button>
+                                <button class="btn btn-danger" onclick="deleteTodo(${todo.id})">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            todoList.innerHTML = todosHtml;
+        }
+
+        // Toggle todo completion status
+        async function toggleTodo(id, currentStatus) {
+            try {
+                await todoDb.update(itemTable)
+                    .set(itemTable.done, !currentStatus)
+                    .where(itemTable.id.eq(id))
+                    .exec();
+                
+                loadTodos();
+                updateStats();
+            } catch (error) {
+                console.error('Error toggling todo:', error);
+                alert('Error updating task. Please try again.');
+            }
+        }
+
+        // Delete todo
+        async function deleteTodo(id) {
+            if (!confirm('Are you sure you want to delete this task?')) {
+                return;
+            }
+
+            try {
+                await todoDb.delete().from(itemTable).where(itemTable.id.eq(id)).exec();
+                loadTodos();
+                updateStats();
+            } catch (error) {
+                console.error('Error deleting todo:', error);
+                alert('Error deleting task. Please try again.');
+            }
+        }
+
+        // Edit todo
+        async function editTodo(id) {
+            try {
+                const results = await todoDb.select().from(itemTable).where(itemTable.id.eq(id)).exec();
+                
+                if (results.length === 0) {
+                    alert('Task not found');
+                    return;
+                }
+
+                const todo = results[0];
+                currentEditId = id;
+                
+                // Fill form with current values
+                document.getElementById('todoText').value = todo.description;
+                document.getElementById('todoDeadline').value = todo.deadline ? 
+                    new Date(todo.deadline).toISOString().slice(0, 16) : '';
+                
+                // Switch button modes
+                document.getElementById('addBtn').style.display = 'none';
+                document.getElementById('updateBtn').style.display = 'inline-block';
+                document.getElementById('cancelBtn').style.display = 'inline-block';
+                
+                // Scroll to form
+                document.querySelector('.todo-form').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error loading todo for edit:', error);
+                alert('Error loading task for editing. Please try again.');
+            }
+        }
+
+        // Update todo
+        async function updateTodo() {
+            const description = document.getElementById('todoText').value.trim();
+            const deadline = document.getElementById('todoDeadline').value;
+
+            if (!description) {
+                alert('Please enter a task description');
+                return;
+            }
+
+            try {
+                await todoDb.update(itemTable)
+                    .set(itemTable.description, description)
+                    .set(itemTable.deadline, deadline ? new Date(deadline) : null)
+                    .where(itemTable.id.eq(currentEditId))
+                    .exec();
+                
+                cancelEdit();
+                loadTodos();
+                updateStats();
+            } catch (error) {
+                console.error('Error updating todo:', error);
+                alert('Error updating task. Please try again.');
+            }
+        }
+
+        // Cancel edit mode
+        function cancelEdit() {
+            currentEditId = null;
+            
+            // Clear form
+            document.getElementById('todoText').value = '';
+            document.getElementById('todoDeadline').value = '';
+            
+            // Switch button modes
+            document.getElementById('addBtn').style.display = 'inline-block';
+            document.getElementById('updateBtn').style.display = 'none';
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+
+        // Filter todos
+        function filterTodos(filter) {
+            currentFilter = filter;
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadTodos();
+        }
+
+        // Update statistics
+        async function updateStats() {
+            try {
+                const allTodos = await todoDb.select().from(itemTable).exec();
+                const pendingTodos = allTodos.filter(todo => !todo.done);
+                const completedTodos = allTodos.filter(todo => todo.done);
+                const overdueTodos = allTodos.filter(todo => 
+                    !todo.done && todo.deadline && new Date(todo.deadline) < new Date()
+                );
+                
+                document.getElementById('totalTasks').textContent = allTodos.length;
+                document.getElementById('pendingTasks').textContent = pendingTodos.length;
+                document.getElementById('completedTasks').textContent = completedTodos.length;
+                document.getElementById('overdueTasks').textContent = overdueTodos.length;
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+
+        // Utility functions
+        function formatDate(date) {
+            return new Intl.DateTimeFormat('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Handle Enter key in text input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('todoText').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    if (currentEditId) {
+                        updateTodo();
+                    } else {
+                        addTodo();
+                    }
+                }
+            });
+
+            // Initialize offline capabilities
+            updateConnectionStatus();
+            registerServiceWorker();
+            handleInstallPrompt();
+            monitorServerStatus();
+            
+            // Listen for online/offline events
+            window.addEventListener('online', function() {
+                updateConnectionStatus();
+                monitorServerStatus();
+            });
+            window.addEventListener('offline', function() {
+                updateConnectionStatus();
+                monitorServerStatus();
+            });
+
+            // Check server status periodically (every 60 seconds)
+            setInterval(monitorServerStatus, 60000);
+        });
+
+        // Initialize the application
+        initDatabase().then(() => {
+            loadTodos();
+            updateStats();
+        }).catch(error => {
+            console.error('Failed to initialize database:', error);
+            document.getElementById('todoList').innerHTML = '<div class="no-todos">Failed to initialize database</div>';
+        });
+    </script>
+</body>
+</html>
